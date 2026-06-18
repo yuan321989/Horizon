@@ -16,12 +16,24 @@ from datetime import datetime, timezone
 
 # ── Config ──────────────────────────────────────────────────────────
 ARXIV_KEYWORDS = [
+    # MCP / tool calling
     "MCP", "model context protocol",
     "tool calling", "tool use", "tool-using",
     "function calling",
     "tool learning",
+    # LLM / 大模型
+    "large language model", "LLM",
+    "reasoning model", "chain-of-thought",
+    # 新架构
+    "transformer architecture", "attention mechanism",
+    "mixture of experts", "MoE",
+    "state space model", "Mamba",
+    "efficient inference",
+    # Agent
+    "AI agent", "LLM agent",
+    "multi-agent",
 ]
-ARXIV_MAX = 8
+ARXIV_MAX = 10
 
 HF_MODEL_CATEGORIES = [
     "text-generation-inference",
