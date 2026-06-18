@@ -1,0 +1,27 @@
+name: Daily Discovery (ArXiv + HF)
+
+on:
+  schedule:
+    - cron: '0 4 * * *'        # UTC 4:00 = 北京时间 12:00
+  workflow_dispatch:
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: astral-sh/setup-uv@v3
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Run discovery
+        env:
+          WEBHOOK_URL: ${{ secrets.WEBHOOK_URL }}
+        run: uv run python scripts/daily_discover.py
