@@ -143,8 +143,15 @@ class HorizonOrchestrator:
             # 6. Search related stories + enrich with background knowledge (2nd AI pass)
             await self._enrich_important_items(important_items)
 
-            # 7. Generate and save daily summaries for each configured language
+            # 6.5 Save individual items as JSON for AI news site
+            items_data = [
+                item.model_dump(mode="json") for item in important_items
+            ]
             today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+            items_path = self.storage.save_items_json(items_data, today)
+            self.console.print(f"💾 Saved {len(items_data)} items to: {items_path}\n")
+
+            # 7. Generate and save daily summaries for each configured language
             for lang in self.config.ai.languages:
                 summarizer = DailySummarizer()
                 summary = await summarizer.generate_summary(important_items, today, len(all_items), language=lang)
