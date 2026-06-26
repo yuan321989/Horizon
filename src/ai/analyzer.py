@@ -1,84 +1,60 @@
-"""Content analysis using AI."""
+"""Content analyzer for Horizon.
+
+Analyzes content items using AI and assigns importance scores.
+"""
 
 import asyncio
 import json
 import re
 from typing import List, Optional
-from tenacity import retry, stop_after_attempt, wait_exponential
-from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn, MofNCompleteColumn
 
-from .client import AIClient
-from .prompts import CONTENT_ANALYSIS_SYSTEM, CONTENT_ANALYSIS_USER
-from .utils import parse_json_response
 from ..models import ContentItem
-
-DEFAULT_THROTTLE_SEC = 0.0
+from ..ai.client import AIClient
+from ..ai.prompts import CONTENT_ANALYSIS_SYSTEM, CONTENT_ANALYSIS_USER
 
 
 class ContentAnalyzer:
-    """Analyzes content items using AI to determine importance."""
+    """Analyzes content items using AI to assign importance scores and categories."""
 
     def __init__(self, ai_client: AIClient):
         self.client = ai_client
 
-    @staticmethod
-    def _parse_json_response(response: str) -> Optional[dict]:
-        """Try multiple strategies to extract a JSON object from an AI response.
-
-        Returns the parsed dict, or None if all strategies fail.
-        """
-        return parse_json_response(response)
-
-    def _get_throttle_sec(self) -> float:
-        """Return the configured inter-item throttle, clamped to zero or above."""
-        config = getattr(self.client, "config", None)
-        throttle_sec = getattr(config, "throttle_sec", DEFAULT_THROTTLE_SEC)
-        return max(throttle_sec, 0.0)
-
-    def _get_concurrency(self) -> int:
-        """Return the configured analysis concurrency, clamped to 1 or above."""
-        config = getattr(self.client, "config", None)
-        concurrency = getattr(config, "analysis_concurrency", 1)
-        return max(concurrency, 1)
-
     async def analyze_batch(self, items: List[ContentItem]) -> List[ContentItem]:
-        throttle_sec = self._get_throttle_sec()
-        concurrency = self._get_concurrency()
-        semaphore = asyncio.Semaphore(concurrency)
+        """Analyze a batch of content items concurrently.
 
-        async def _process(item: ContentItem, index: int, progress_task) -> ContentItem:
+        Args:
+            items: Content items to analyze
+
+        Returns:
+            List[ContentItem]: Analyzed items with AI scores and summaries
+        """
+        if not items:
+            return items
+
+        semaphore = asyncio.Semaphore(self.client.config.get("analysis_concurrency", 3))
+
+        async def analyze_with_throttle(item: ContentItem) -> ContentItem:
+            throttle = self.client.config.get("throttle_sec", 0)
+            if throttle > 0:
+                await asyncio.sleep(throttle)
             async with semaphore:
                 try:
                     await self._analyze_item(item)
                 except Exception as e:
-                    print(f"Error analyzing item {item.id}: {e}")
                     item.ai_score = 0.0
                     item.ai_reason = "Analysis failed"
                     item.ai_summary = item.title
-                if throttle_sec > 0 and index < len(items) - 1:
-                    await asyncio.sleep(throttle_sec)
-            progress.advance(progress_task)
-            return item
+                    item.ai_tags = []
+                return item
 
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            BarColumn(),
-            MofNCompleteColumn(),
-            transient=True,
-        ) as progress:
-            task = progress.add_task("Analyzing", total=len(items))
-            coros = [
-                _process(item, i, task) for i, item in enumerate(items)
-            ]
-            analyzed_items = await asyncio.gather(*coros)
+        coros = []
+        for item in items:
+            coros.append(analyze_with_throttle(item))
+
+        analyzed_items = await asyncio.gather(*coros)
 
         return analyzed_items
 
-    @retry(
-        stop=stop_after_attempt(3),
-        wait=wait_exponential(min=2, max=10)
-    )
     async def _analyze_item(self, item: ContentItem) -> None:
         """Analyze a single content item.
 
@@ -158,5 +134,74 @@ class ContentAnalyzer:
         # Update item with analysis results
         item.ai_score = float(result.get("score", 0))
         item.ai_reason = result.get("reason", "")
-        item.ai_summary = result.get("summary", item.title)
+        item.ai_summary = result.get("summary_zh") or result.get("summary", item.title)
         item.ai_tags = result.get("tags", [])
+
+    def _parse_json_response(self, response: str) -> Optional[dict]:
+        """Parse JSON response from AI with robust fallback.
+
+        Handles:
+        - Proper JSON
+        - JSON within code fences (```json ... ```)
+        - Truncated JSON (attempts to complete it)
+        - Extra text after JSON
+
+        Args:
+            response: Raw text response from AI
+
+        Returns:
+            Parsed JSON dict or None if parsing failed
+        """
+        if not response:
+            return None
+
+        # Try to extract JSON from code fences
+        json_match = re.search(r"```(?:json)?\s*\n?(.*?)\n?```", response, re.DOTALL)
+        if json_match:
+            json_str = json_match.group(1).strip()
+        else:
+            json_str = response.strip()
+
+        # Try direct parsing
+        try:
+            return json.loads(json_str)
+        except json.JSONDecodeError:
+            pass
+
+        # Try finding the JSON object in the response
+        brace_start = json_str.find("{")
+        brace_end = json_str.rfind("}")
+
+        if brace_start != -1 and brace_end != -1 and brace_end > brace_start:
+            try:
+                return json.loads(json_str[brace_start : brace_end + 1])
+            except json.JSONDecodeError:
+                pass
+
+        # Try to repair truncated JSON by adding closing braces
+        if "{" in json_str:
+            # Count braces to determine if we need to close
+            open_braces = json_str.count("{")
+            close_braces = json_str.count("}")
+
+            if open_braces > close_braces:
+                # Add missing closing braces
+                repaired = json_str + "}" * (open_braces - close_braces)
+                try:
+                    return json.loads(repaired)
+                except json.JSONDecodeError:
+                    pass
+
+                # Try extracting from brace start with repair
+                if brace_start != -1:
+                    partial = json_str[brace_start:]
+                    open_b = partial.count("{")
+                    close_b = partial.count("}")
+                    if open_b > close_b:
+                        repaired = partial + "}" * (open_b - close_b)
+                        try:
+                            return json.loads(repaired)
+                        except json.JSONDecodeError:
+                            pass
+
+        return None
