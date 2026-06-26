@@ -2,7 +2,7 @@
   "version": "1.0",
   "ai": {
     "provider": "openai",
-    "model": "gpt-4o",
+    "model": "tokeness/free",
     "base_url": "https://n.tokeness.io/v1",
     "api_key_env": "AI_API_KEY",
     "temperature": 0.3,
@@ -16,40 +16,12 @@
   },
   "sources": {
     "github": [
-      {
-        "type": "repo_releases",
-        "username": null,
-        "owner": "sgl-project",
-        "repo": "sglang",
-        "enabled": true
-      },
-      {
-        "type": "repo_releases",
-        "username": null,
-        "owner": "vllm-project",
-        "repo": "vllm",
-        "enabled": true
-      },
-      {
-        "type": "user_events",
-        "username": "karpathy",
-        "owner": null,
-        "repo": null,
-        "enabled": true
-      },
-      {
-        "type": "repo_releases",
-        "username": null,
-        "owner": "qazbnm456",
-        "repo": "awesome-web-security",
-        "enabled": true
-      }
+      {"type": "repo_releases", "username": null, "owner": "sgl-project", "repo": "sglang", "enabled": true},
+      {"type": "repo_releases", "username": null, "owner": "vllm-project", "repo": "vllm", "enabled": true},
+      {"type": "user_events", "username": "karpathy", "owner": null, "repo": null, "enabled": true},
+      {"type": "repo_releases", "username": null, "owner": "qazbnm456", "repo": "awesome-web-security", "enabled": true}
     ],
-    "hackernews": {
-      "enabled": true,
-      "fetch_top_stories": 30,
-      "min_score": 100
-    },
+    "hackernews": {"enabled": true, "fetch_top_stories": 30, "min_score": 100},
     "rss": [
       {"name": "Simon Willison", "url": "https://simonwillison.net/atom/everything/", "enabled": true, "category": ""},
       {"name": "量子位", "url": "https://wechat2rss.xlab.app/feed/7131b577c61365cb47e81000738c10d872685908.xml", "enabled": true, "category": ""},
@@ -92,14 +64,7 @@
     "telegram": {"enabled": false, "channels": []},
     "twitter": null,
     "openbb": null,
-    "ossinsight": {
-      "enabled": true,
-      "period": "past_24_hours",
-      "languages": ["All", "Python", "TypeScript"],
-      "keywords": [],
-      "min_stars": 5,
-      "max_items": 30
-    }
+    "ossinsight": {"enabled": true, "period": "past_24_hours", "languages": ["All", "Python", "TypeScript"], "keywords": [], "min_stars": 5, "max_items": 30}
   },
   "filtering": {
     "ai_score_threshold": 7.0,
@@ -115,11 +80,7 @@
     "url_env": "WEBHOOK_URL",
     "delivery": "summary",
     "overview_position": "first",
-    "request_body": {
-      "chat_id": 7667670199,
-      "text": "#{summary}",
-      "parse_mode": "Markdown"
-    },
+    "request_body": {"chat_id": 7667670199, "text": "#{summary}", "parse_mode": "Markdown"},
     "platform": "generic",
     "layout": "markdown",
     "fallback_layout": "markdown"
