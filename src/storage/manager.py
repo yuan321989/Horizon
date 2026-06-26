@@ -117,6 +117,23 @@ class StorageManager:
 
         return filepath
 
+    def save_items_json(self, items: list[dict], date: str) -> Path:
+        """Save individual news items as JSON for downstream consumption (e.g. AI news site).
+
+        Args:
+            items: List of serialized ContentItem dicts (pre-model_dump).
+            date: Date string YYYY-MM-DD.
+
+        Returns:
+            Path to saved JSON file.
+        """
+        items_dir = self.data_dir / "items"
+        items_dir.mkdir(parents=True, exist_ok=True)
+        filepath = items_dir / f"{date}.json"
+        with open(filepath, "w", encoding="utf-8") as f:
+            json.dump(items, f, indent=2, ensure_ascii=False)
+        return filepath
+
     def load_subscribers(self) -> list:
         """Loads the list of email subscribers."""
         subscribers_path = self.data_dir / "subscribers.json"
