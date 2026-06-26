@@ -2,8 +2,8 @@
   "version": "1.0",
   "ai": {
     "provider": "openai",
-    "model": "xopqwen36v35b",
-    "base_url": "https://maas-api.cn-huabei-1.xf-yun.com/v2",
+    "model": "gpt-4o",
+    "base_url": "https://n.tokeness.io/v1",
     "api_key_env": "AI_API_KEY",
     "temperature": 0.3,
     "max_tokens": 8192,
